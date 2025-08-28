@@ -10,41 +10,41 @@ class VideoProcessor {
   }
 
   setupFFmpeg() {
-    // Set FFmpeg path for Windows
+    // Set FFmpeg path for different platforms
     if (process.platform === "win32") {
-      // You'll need to install FFmpeg and set the path
+      // Windows FFmpeg path
       // ffmpeg.setFfmpegPath('C:\\path\\to\\ffmpeg.exe');
       // ffmpeg.setFfprobePath('C:\\path\\to\\ffprobe.exe');
+    } else if (process.platform === "darwin") {
+      // macOS FFmpeg path (Homebrew installation)
+      ffmpeg.setFfmpegPath("/opt/homebrew/bin/ffmpeg");
+      ffmpeg.setFfprobePath("/opt/homebrew/bin/ffprobe");
     }
   }
 
   async generateVideoWithTitles(inputPath, outputPath, titles, colors) {
     return new Promise((resolve, reject) => {
       try {
+        // Build the drawtext filter string for all titles
+        const drawtextFilters = titles
+          .map((title, index) => {
+            const color = colors[index] || "white";
+            const yPosition = 50 + index * 80;
+            // Escape special characters properly for FFmpeg
+            const escapedTitle = title
+              .replace(/'/g, "\\'")
+              .replace(/:/g, "\\:")
+              .replace(/,/g, "\\,");
+            return `drawtext=text='${escapedTitle}':fontsize=48:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}:font=Arial-Bold:shadowcolor=black:shadowx=2:shadowy=2`;
+          })
+          .join(",");
+
         let command = ffmpeg(inputPath);
 
-        // Add title overlays for each variation
-        titles.forEach((title, index) => {
-          const color = colors[index] || "white";
-          const yPosition = 50 + index * 80; // Stack titles vertically
-
-          command = command.videoFilters([
-            {
-              filter: "drawtext",
-              options: {
-                text: title,
-                fontsize: 48,
-                fontcolor: color,
-                x: "(w-text_w)/2", // Center horizontally
-                y: yPosition,
-                font: "Arial-Bold",
-                shadowcolor: "black",
-                shadowx: 2,
-                shadowy: 2,
-              },
-            },
-          ]);
-        });
+        // Apply all title overlays as a single video filter
+        if (drawtextFilters) {
+          command = command.videoFilters(drawtextFilters);
+        }
 
         command
           .outputOptions([
