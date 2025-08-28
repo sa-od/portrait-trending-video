@@ -76,6 +76,84 @@ class VideoProcessor {
     });
   }
 
+  async generateIndividualVideos(inputPath, titles, colors) {
+    const results = [];
+
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i];
+      const color = colors[i] || "white";
+      const outputFilename = `generated-${i + 1}-${Date.now()}.mp4`;
+      const outputPath = path.join(__dirname, "generated", outputFilename);
+
+      try {
+        await this.generateSingleTitleVideo(
+          inputPath,
+          outputPath,
+          title,
+          color
+        );
+        results.push({
+          filename: outputFilename,
+          path: outputPath,
+          title: title,
+          color: color,
+          downloadUrl: `/api/download/${outputFilename}`,
+        });
+      } catch (error) {
+        console.error(`Error generating video ${i + 1}:`, error);
+        throw error;
+      }
+    }
+
+    return results;
+  }
+
+  async generateSingleTitleVideo(inputPath, outputPath, title, color) {
+    return new Promise((resolve, reject) => {
+      try {
+        // Escape special characters properly for FFmpeg
+        const escapedTitle = title
+          .replace(/'/g, "\\'")
+          .replace(/:/g, "\\:")
+          .replace(/,/g, "\\,");
+
+        const drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=48:fontcolor=${color}:x=(w-text_w)/2:y=50:font=Arial-Bold:shadowcolor=black:shadowx=2:shadowy=2`;
+
+        let command = ffmpeg(inputPath);
+
+        // Apply single title overlay
+        command = command.videoFilters(drawtextFilter);
+
+        command
+          .outputOptions([
+            "-c:v libx264", // Video codec
+            "-c:a aac", // Audio codec
+            "-preset fast", // Encoding preset
+            "-crf 23", // Quality setting
+            "-movflags +faststart", // Web optimization
+          ])
+          .output(outputPath)
+          .on("start", (commandLine) => {
+            console.log("FFmpeg command:", commandLine);
+          })
+          .on("progress", (progress) => {
+            console.log(`Processing: ${progress.percent}% done`);
+          })
+          .on("end", () => {
+            console.log("Video processing completed");
+            resolve(outputPath);
+          })
+          .on("error", (err) => {
+            console.error("FFmpeg error:", err);
+            reject(err);
+          })
+          .run();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async createTitleOverlay(title, color, fontSize = 48) {
     const svgContent = `
       <svg width="800" height="100" xmlns="http://www.w3.org/2000/svg">

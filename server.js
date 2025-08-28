@@ -165,25 +165,63 @@ app.post("/api/generate-video", async (req, res) => {
     const outputFilename = `generated-${uuidv4()}.mp4`;
     const outputPath = path.join(__dirname, "generated", outputFilename);
 
-    // Process video with titles using FFmpeg
-    await videoProcessor.generateVideoWithTitles(
+    // Process video with individual titles using FFmpeg
+    const generatedVideos = await videoProcessor.generateIndividualVideos(
       videoPath,
-      outputPath,
       titles,
       colors
     );
 
-    const generatedVideo = {
-      filename: outputFilename,
-      path: outputPath,
-      downloadUrl: `/api/download/${outputFilename}`,
-      message: "Video generation completed successfully",
+    const response = {
+      videos: generatedVideos,
+      message: "Individual videos generated successfully",
     };
 
-    res.json(generatedVideo);
+    res.json(response);
   } catch (error) {
     console.error("Video Generation Error:", error);
     res.status(500).json({ error: "Failed to generate video" });
+  }
+});
+
+// Generate Individual Video
+app.post("/api/generate-individual-video", async (req, res) => {
+  try {
+    const { videoFilename, title, color, videoIndex } = req.body;
+
+    if (!videoFilename || !title || !color) {
+      return res.status(400).json({ error: "Invalid request data" });
+    }
+
+    const videoPath = path.join(__dirname, "uploads", videoFilename);
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ error: "Video file not found" });
+    }
+
+    const outputFilename = `generated-${videoIndex + 1}-${Date.now()}.mp4`;
+    const outputPath = path.join(__dirname, "generated", outputFilename);
+
+    // Process video with single title using FFmpeg
+    await videoProcessor.generateSingleTitleVideo(
+      videoPath,
+      outputPath,
+      title,
+      color
+    );
+
+    const response = {
+      filename: outputFilename,
+      path: outputPath,
+      title: title,
+      color: color,
+      downloadUrl: `/api/download/${outputFilename}`,
+      message: "Individual video generated successfully",
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Individual Video Generation Error:", error);
+    res.status(500).json({ error: "Failed to generate individual video" });
   }
 });
 
