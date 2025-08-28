@@ -1,7 +1,7 @@
-const ffmpeg = require('fluent-ffmpeg');
-const path = require('path');
-const fs = require('fs');
-const { promisify } = require('util');
+const ffmpeg = require("fluent-ffmpeg");
+const path = require("path");
+const fs = require("fs");
+const { promisify } = require("util");
 const writeFileAsync = promisify(fs.writeFile);
 
 class VideoProcessor {
@@ -11,7 +11,7 @@ class VideoProcessor {
 
   setupFFmpeg() {
     // Set FFmpeg path for Windows
-    if (process.platform === 'win32') {
+    if (process.platform === "win32") {
       // You'll need to install FFmpeg and set the path
       // ffmpeg.setFfmpegPath('C:\\path\\to\\ffmpeg.exe');
       // ffmpeg.setFfprobePath('C:\\path\\to\\ffprobe.exe');
@@ -25,52 +25,51 @@ class VideoProcessor {
 
         // Add title overlays for each variation
         titles.forEach((title, index) => {
-          const color = colors[index] || 'white';
-          const yPosition = 50 + (index * 80); // Stack titles vertically
-          
+          const color = colors[index] || "white";
+          const yPosition = 50 + index * 80; // Stack titles vertically
+
           command = command.videoFilters([
             {
-              filter: 'drawtext',
+              filter: "drawtext",
               options: {
                 text: title,
                 fontsize: 48,
                 fontcolor: color,
-                x: '(w-text_w)/2', // Center horizontally
+                x: "(w-text_w)/2", // Center horizontally
                 y: yPosition,
-                font: 'Arial-Bold',
-                shadowcolor: 'black',
+                font: "Arial-Bold",
+                shadowcolor: "black",
                 shadowx: 2,
-                shadowy: 2
-              }
-            }
+                shadowy: 2,
+              },
+            },
           ]);
         });
 
         command
           .outputOptions([
-            '-c:v libx264',        // Video codec
-            '-c:a aac',            // Audio codec
-            '-preset fast',        // Encoding preset
-            '-crf 23',             // Quality setting
-            '-movflags +faststart' // Web optimization
+            "-c:v libx264", // Video codec
+            "-c:a aac", // Audio codec
+            "-preset fast", // Encoding preset
+            "-crf 23", // Quality setting
+            "-movflags +faststart", // Web optimization
           ])
           .output(outputPath)
-          .on('start', (commandLine) => {
-            console.log('FFmpeg command:', commandLine);
+          .on("start", (commandLine) => {
+            console.log("FFmpeg command:", commandLine);
           })
-          .on('progress', (progress) => {
+          .on("progress", (progress) => {
             console.log(`Processing: ${progress.percent}% done`);
           })
-          .on('end', () => {
-            console.log('Video processing completed');
+          .on("end", () => {
+            console.log("Video processing completed");
             resolve(outputPath);
           })
-          .on('error', (err) => {
-            console.error('FFmpeg error:', err);
+          .on("error", (err) => {
+            console.error("FFmpeg error:", err);
             reject(err);
           })
           .run();
-
       } catch (error) {
         reject(error);
       }
@@ -97,7 +96,11 @@ class VideoProcessor {
       </svg>
     `;
 
-    const overlayPath = path.join(__dirname, 'temp', `overlay-${Date.now()}.svg`);
+    const overlayPath = path.join(
+      __dirname,
+      "temp",
+      `overlay-${Date.now()}.svg`
+    );
     await writeFileAsync(overlayPath, svgContent);
     return overlayPath;
   }
@@ -114,17 +117,17 @@ class VideoProcessor {
     });
   }
 
-  async createThumbnail(videoPath, outputPath, time = '00:00:01') {
+  async createThumbnail(videoPath, outputPath, time = "00:00:01") {
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
         .screenshots({
           timestamps: [time],
           filename: path.basename(outputPath),
           folder: path.dirname(outputPath),
-          size: '320x240'
+          size: "320x240",
         })
-        .on('end', () => resolve(outputPath))
-        .on('error', reject);
+        .on("end", () => resolve(outputPath))
+        .on("error", reject);
     });
   }
 }
