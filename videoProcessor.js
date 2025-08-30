@@ -108,7 +108,7 @@ class VideoProcessor {
             .replace(/:/g, "\\:")
             .replace(/,/g, "\\,");
 
-          return `drawtext=text='${escapedText}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPos}:shadowcolor=black@0.8:shadowx=2:shadowy=2:borderw=1:bordercolor=black`;
+          return `drawtext=text='${escapedText}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPos}:shadowcolor=black@0.8:shadowx=2:shadowy=2:borderw=4:bordercolor=black:fontfile=/System/Library/Fonts/Supplemental/Poppins-Black.ttf`;
         });
 
         // Create FFmpeg command
