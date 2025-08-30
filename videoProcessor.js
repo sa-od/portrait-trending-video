@@ -22,20 +22,55 @@ class VideoProcessor {
     }
   }
 
-  async generateVideoWithTitles(inputPath, outputPath, titles, colors) {
+  // Get video dimensions to calculate appropriate font size
+  async getVideoDimensions(videoPath) {
     return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(videoPath, (err, metadata) => {
+        if (err) {
+          reject(err);
+        } else {
+          const videoStream = metadata.streams.find(
+            (stream) => stream.codec_type === "video"
+          );
+          resolve({
+            width: videoStream.width,
+            height: videoStream.height,
+          });
+        }
+      });
+    });
+  }
+
+  // Calculate font size based on video height (10% of height)
+  calculateFontSize(videoHeight, percentage = 0.1) {
+    // FFmpeg font size is roughly 0.7 times the actual pixel height of text
+    // So we multiply by 1.4 to compensate
+    return Math.round(videoHeight * percentage * 1.4);
+  }
+
+  async generateVideoWithTitles(inputPath, outputPath, titles, colors) {
+    return new Promise(async (resolve, reject) => {
       try {
+        // Get video dimensions first
+        const { width, height } = await this.getVideoDimensions(inputPath);
+        const fontSize = this.calculateFontSize(height);
+
+        // Calculate line height (12% of video height to give some spacing)
+        const lineHeight = Math.round(height * 0.12);
+
         // Build the drawtext filter string for all titles
         const drawtextFilters = titles
           .map((title, index) => {
             const color = colors[index] || "white";
-            const yPosition = 50 + index * 80;
+            const yPosition = Math.round(height * 0.05) + index * lineHeight; // Start at 5% from top
+
             // Escape special characters properly for FFmpeg
             const escapedTitle = title
               .replace(/'/g, "\\'")
               .replace(/:/g, "\\:")
               .replace(/,/g, "\\,");
-            return `drawtext=text='${escapedTitle}':fontsize=48:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}:font=Arial-Bold:shadowcolor=black:shadowx=2:shadowy=2`;
+
+            return `drawtext=text='${escapedTitle}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}:fontfile=/System/Library/Fonts/Arial.ttf:shadowcolor=black@0.8:shadowx=4:shadowy=4:box=1:boxcolor=black@0.3:boxborderw=10`;
           })
           .join(",");
 
@@ -57,6 +92,9 @@ class VideoProcessor {
           .output(outputPath)
           .on("start", (commandLine) => {
             console.log("FFmpeg command:", commandLine);
+            console.log(
+              `Video dimensions: ${width}x${height}, Font size: ${fontSize}`
+            );
           })
           .on("progress", (progress) => {
             console.log(`Processing: ${progress.percent}% done`);
@@ -109,15 +147,20 @@ class VideoProcessor {
   }
 
   async generateSingleTitleVideo(inputPath, outputPath, title, color) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
+        // Get video dimensions first
+        const { width, height } = await this.getVideoDimensions(inputPath);
+        const fontSize = this.calculateFontSize(height, 0.15); // Even bigger for single titles - 15%
+
         // Escape special characters properly for FFmpeg
         const escapedTitle = title
           .replace(/'/g, "\\'")
           .replace(/:/g, "\\:")
           .replace(/,/g, "\\,");
 
-        const drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=48:fontcolor=${color}:x=(w-text_w)/2:y=50:font=Arial-Bold:shadowcolor=black:shadowx=2:shadowy=2`;
+        // Enhanced drawtext filter with bigger, bolder styling
+        const drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/System/Library/Fonts/Arial Black.ttf:shadowcolor=black@0.9:shadowx=6:shadowy=6:box=1:boxcolor=black@0.4:boxborderw=15:borderw=3:bordercolor=white`;
 
         let command = ffmpeg(inputPath);
 
@@ -135,6 +178,109 @@ class VideoProcessor {
           .output(outputPath)
           .on("start", (commandLine) => {
             console.log("FFmpeg command:", commandLine);
+            console.log(
+              `Video dimensions: ${width}x${height}, Font size: ${fontSize}`
+            );
+          })
+          .on("progress", (progress) => {
+            console.log(`Processing: ${progress.percent}% done`);
+          })
+          .on("end", () => {
+            console.log("Video processing completed");
+            resolve(outputPath);
+          })
+          .on("error", (err) => {
+            console.error("FFmpeg error:", err);
+            reject(err);
+          })
+          .run();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  // Alternative method with even more control over text styling
+  async generateSingleTitleVideoEnhanced(
+    inputPath,
+    outputPath,
+    title,
+    color,
+    options = {}
+  ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { width, height } = await this.getVideoDimensions(inputPath);
+
+        const {
+          fontSizePercentage = 0.15, // 15% of video height
+          position = "center", // 'top', 'center', 'bottom'
+          fontWeight = "black", // 'bold', 'black', 'heavy'
+          strokeWidth = 3,
+          strokeColor = "white",
+          shadowStrength = 0.9,
+          shadowOffset = 6,
+          backgroundBox = true,
+          backgroundOpacity = 0.4,
+        } = options;
+
+        const fontSize = this.calculateFontSize(height, fontSizePercentage);
+
+        // Calculate Y position based on position preference
+        let yPosition = "(h-text_h)/2"; // center
+        if (position === "top") {
+          yPosition = Math.round(height * 0.1); // 10% from top
+        } else if (position === "bottom") {
+          yPosition = `h-text_h-${Math.round(height * 0.1)}`; // 10% from bottom
+        }
+
+        const escapedTitle = title
+          .replace(/'/g, "\\'")
+          .replace(/:/g, "\\:")
+          .replace(/,/g, "\\,");
+
+        // Build enhanced filter with all styling options
+        let drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}`;
+
+        // Add font weight
+        if (fontWeight === "black") {
+          drawtextFilter += `:fontfile=/System/Library/Fonts/Arial Black.ttf`;
+        } else if (fontWeight === "bold") {
+          drawtextFilter += `:fontfile=/System/Library/Fonts/Arial Bold.ttf`;
+        }
+
+        // Add shadow
+        drawtextFilter += `:shadowcolor=black@${shadowStrength}:shadowx=${shadowOffset}:shadowy=${shadowOffset}`;
+
+        // Add stroke/border
+        if (strokeWidth > 0) {
+          drawtextFilter += `:borderw=${strokeWidth}:bordercolor=${strokeColor}`;
+        }
+
+        // Add background box
+        if (backgroundBox) {
+          drawtextFilter += `:box=1:boxcolor=black@${backgroundOpacity}:boxborderw=${Math.round(
+            fontSize * 0.3
+          )}`;
+        }
+
+        let command = ffmpeg(inputPath);
+        command = command.videoFilters(drawtextFilter);
+
+        command
+          .outputOptions([
+            "-c:v libx264",
+            "-c:a aac",
+            "-preset fast",
+            "-crf 23",
+            "-movflags +faststart",
+          ])
+          .output(outputPath)
+          .on("start", (commandLine) => {
+            console.log("FFmpeg command:", commandLine);
+            console.log(
+              `Enhanced styling - Font size: ${fontSize}, Position: ${position}`
+            );
           })
           .on("progress", (progress) => {
             console.log(`Processing: ${progress.percent}% done`);
@@ -211,3 +357,43 @@ class VideoProcessor {
 }
 
 module.exports = VideoProcessor;
+
+// Usage Examples:
+/*
+const processor = new VideoProcessor();
+
+// Example 1: Multiple titles with big text (10% of video height each)
+processor.generateVideoWithTitles(
+  'input.mp4',
+  'output-multiple.mp4',
+  ['Big Title 1', 'Big Title 2', 'Big Title 3'],
+  ['red', 'blue', 'yellow']
+);
+
+// Example 2: Single title with huge text (15% of video height)
+processor.generateSingleTitleVideo(
+  'input.mp4',
+  'output-single.mp4',
+  'HUGE TITLE',
+  'white'
+);
+
+// Example 3: Enhanced single title with full control
+processor.generateSingleTitleVideoEnhanced(
+  'input.mp4',
+  'output-enhanced.mp4',
+  'PREMIUM TITLE',
+  'gold',
+  {
+    fontSizePercentage: 0.20, // 20% of video height!
+    position: 'center',
+    fontWeight: 'black',
+    strokeWidth: 5,
+    strokeColor: 'black',
+    shadowStrength: 1.0,
+    shadowOffset: 8,
+    backgroundBox: true,
+    backgroundOpacity: 0.5
+  }
+);
+*/
