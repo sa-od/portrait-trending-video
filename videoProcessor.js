@@ -146,26 +146,71 @@ class VideoProcessor {
     return results;
   }
 
+  // Helper function to break long titles into multiple lines
+  breakTitleIntoLines(title, maxCharsPerLine = 20) {
+    const words = title.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      // If adding this word would exceed the limit, start a new line
+      if (
+        currentLine.length + word.length + 1 > maxCharsPerLine &&
+        currentLine.length > 0
+      ) {
+        lines.push(currentLine.trim());
+        currentLine = word;
+      } else {
+        currentLine += (currentLine.length > 0 ? " " : "") + word;
+      }
+    }
+
+    // Add the last line
+    if (currentLine.length > 0) {
+      lines.push(currentLine.trim());
+    }
+
+    return lines;
+  }
+
   async generateSingleTitleVideo(inputPath, outputPath, title, color) {
     return new Promise(async (resolve, reject) => {
       try {
         // Get video dimensions first
         const { width, height } = await this.getVideoDimensions(inputPath);
-        const fontSize = this.calculateFontSize(height, 0.15); // Even bigger for single titles - 15%
+        const fontSize = this.calculateFontSize(height, 0.12); // Slightly smaller to accommodate multiple lines
 
-        // Escape special characters properly for FFmpeg
-        const escapedTitle = title
-          .replace(/'/g, "\\'")
-          .replace(/:/g, "\\:")
-          .replace(/,/g, "\\,");
+        // Break title into lines to prevent overflow
+        const maxCharsPerLine = Math.floor(width / (fontSize * 0.6)); // Estimate characters per line
+        const titleLines = this.breakTitleIntoLines(
+          title,
+          Math.max(maxCharsPerLine, 15)
+        );
 
-        // Enhanced drawtext filter with bigger, bolder styling
-        const drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/System/Library/Fonts/Arial Black.ttf:shadowcolor=black@0.9:shadowx=6:shadowy=6:box=1:boxcolor=black@0.4:boxborderw=15:borderw=3:bordercolor=white`;
+        // Calculate line height and starting Y position (top of video)
+        const lineHeight = fontSize * 1.2; // 20% spacing between lines
+        const startY = Math.round(height * 0.05); // Start at 5% from top
+
+        // Create drawtext filters for each line
+        const drawtextFilters = titleLines
+          .map((line, index) => {
+            const yPosition = startY + index * lineHeight;
+
+            // Escape special characters properly for FFmpeg
+            const escapedLine = line
+              .replace(/'/g, "\\'")
+              .replace(/:/g, "\\:")
+              .replace(/,/g, "\\,");
+
+            // No background box, positioned at top with strong shadow and border
+            return `drawtext=text='${escapedLine}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}:fontfile=/System/Library/Fonts/Arial Black.ttf:shadowcolor=black@0.9:shadowx=4:shadowy=4:borderw=3:bordercolor=black`;
+          })
+          .join(",");
 
         let command = ffmpeg(inputPath);
 
-        // Apply single title overlay
-        command = command.videoFilters(drawtextFilter);
+        // Apply title overlays
+        command = command.videoFilters(drawtextFilters);
 
         command
           .outputOptions([
@@ -180,6 +225,10 @@ class VideoProcessor {
             console.log("FFmpeg command:", commandLine);
             console.log(
               `Video dimensions: ${width}x${height}, Font size: ${fontSize}`
+            );
+            console.log(
+              `Title broken into ${titleLines.length} lines:`,
+              titleLines
             );
           })
           .on("progress", (progress) => {
@@ -200,7 +249,7 @@ class VideoProcessor {
     });
   }
 
-  // Alternative method with even more control over text styling
+  // Alternative method with even more control over text styling and line breaking
   async generateSingleTitleVideoEnhanced(
     inputPath,
     outputPath,
@@ -213,59 +262,83 @@ class VideoProcessor {
         const { width, height } = await this.getVideoDimensions(inputPath);
 
         const {
-          fontSizePercentage = 0.15, // 15% of video height
-          position = "center", // 'top', 'center', 'bottom'
+          fontSizePercentage = 0.12, // 12% of video height
+          position = "top", // 'top', 'center', 'bottom'
           fontWeight = "black", // 'bold', 'black', 'heavy'
           strokeWidth = 3,
-          strokeColor = "white",
+          strokeColor = "black",
           shadowStrength = 0.9,
-          shadowOffset = 6,
-          backgroundBox = true,
+          shadowOffset = 4,
+          backgroundBox = false, // Disabled by default
           backgroundOpacity = 0.4,
+          maxCharsPerLine = null, // Auto-calculate if null
         } = options;
 
         const fontSize = this.calculateFontSize(height, fontSizePercentage);
 
-        // Calculate Y position based on position preference
-        let yPosition = "(h-text_h)/2"; // center
+        // Calculate max characters per line if not provided
+        const charsPerLine =
+          maxCharsPerLine || Math.floor(width / (fontSize * 0.6));
+        const titleLines = this.breakTitleIntoLines(
+          title,
+          Math.max(charsPerLine, 15)
+        );
+
+        // Calculate line height and starting Y position
+        const lineHeight = fontSize * 1.2;
+        let startY;
+
         if (position === "top") {
-          yPosition = Math.round(height * 0.1); // 10% from top
+          startY = Math.round(height * 0.05); // 5% from top
         } else if (position === "bottom") {
-          yPosition = `h-text_h-${Math.round(height * 0.1)}`; // 10% from bottom
+          startY =
+            height - titleLines.length * lineHeight - Math.round(height * 0.05); // 5% from bottom
+        } else {
+          // center
+          startY = (height - titleLines.length * lineHeight) / 2;
         }
 
-        const escapedTitle = title
-          .replace(/'/g, "\\'")
-          .replace(/:/g, "\\:")
-          .replace(/,/g, "\\,");
+        // Create drawtext filters for each line
+        const drawtextFilters = titleLines
+          .map((line, index) => {
+            const yPosition = startY + index * lineHeight;
 
-        // Build enhanced filter with all styling options
-        let drawtextFilter = `drawtext=text='${escapedTitle}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}`;
+            const escapedLine = line
+              .replace(/'/g, "\\'")
+              .replace(/:/g, "\\:")
+              .replace(/,/g, "\\,");
 
-        // Add font weight
-        if (fontWeight === "black") {
-          drawtextFilter += `:fontfile=/System/Library/Fonts/Arial Black.ttf`;
-        } else if (fontWeight === "bold") {
-          drawtextFilter += `:fontfile=/System/Library/Fonts/Arial Bold.ttf`;
-        }
+            // Build enhanced filter with all styling options
+            let filter = `drawtext=text='${escapedLine}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=${yPosition}`;
 
-        // Add shadow
-        drawtextFilter += `:shadowcolor=black@${shadowStrength}:shadowx=${shadowOffset}:shadowy=${shadowOffset}`;
+            // Add font weight
+            if (fontWeight === "black") {
+              filter += `:fontfile=/System/Library/Fonts/Arial Black.ttf`;
+            } else if (fontWeight === "bold") {
+              filter += `:fontfile=/System/Library/Fonts/Arial Bold.ttf`;
+            }
 
-        // Add stroke/border
-        if (strokeWidth > 0) {
-          drawtextFilter += `:borderw=${strokeWidth}:bordercolor=${strokeColor}`;
-        }
+            // Add shadow
+            filter += `:shadowcolor=black@${shadowStrength}:shadowx=${shadowOffset}:shadowy=${shadowOffset}`;
 
-        // Add background box
-        if (backgroundBox) {
-          drawtextFilter += `:box=1:boxcolor=black@${backgroundOpacity}:boxborderw=${Math.round(
-            fontSize * 0.3
-          )}`;
-        }
+            // Add stroke/border
+            if (strokeWidth > 0) {
+              filter += `:borderw=${strokeWidth}:bordercolor=${strokeColor}`;
+            }
+
+            // Add background box only if explicitly enabled
+            if (backgroundBox) {
+              filter += `:box=1:boxcolor=black@${backgroundOpacity}:boxborderw=${Math.round(
+                fontSize * 0.2
+              )}`;
+            }
+
+            return filter;
+          })
+          .join(",");
 
         let command = ffmpeg(inputPath);
-        command = command.videoFilters(drawtextFilter);
+        command = command.videoFilters(drawtextFilters);
 
         command
           .outputOptions([
@@ -280,6 +353,10 @@ class VideoProcessor {
             console.log("FFmpeg command:", commandLine);
             console.log(
               `Enhanced styling - Font size: ${fontSize}, Position: ${position}`
+            );
+            console.log(
+              `Title broken into ${titleLines.length} lines:`,
+              titleLines
             );
           })
           .on("progress", (progress) => {
@@ -362,38 +439,38 @@ module.exports = VideoProcessor;
 /*
 const processor = new VideoProcessor();
 
-// Example 1: Multiple titles with big text (10% of video height each)
-processor.generateVideoWithTitles(
-  'input.mp4',
-  'output-multiple.mp4',
-  ['Big Title 1', 'Big Title 2', 'Big Title 3'],
-  ['red', 'blue', 'yellow']
-);
-
-// Example 2: Single title with huge text (15% of video height)
+// Example 1: Simple single title at top, no background, with line breaking
 processor.generateSingleTitleVideo(
   'input.mp4',
   'output-single.mp4',
-  'HUGE TITLE',
+  'This is a Long Title That Will Break Into Multiple Lines',
   'white'
 );
 
-// Example 3: Enhanced single title with full control
+// Example 2: Enhanced single title with full control, positioned at top
 processor.generateSingleTitleVideoEnhanced(
   'input.mp4',
   'output-enhanced.mp4',
-  'PREMIUM TITLE',
-  'gold',
+  'Another Very Long Title That Needs to Wrap to Multiple Lines for Better Display',
+  'yellow',
   {
-    fontSizePercentage: 0.20, // 20% of video height!
-    position: 'center',
+    fontSizePercentage: 0.10, // 10% of video height per line
+    position: 'top', // Position at top
     fontWeight: 'black',
-    strokeWidth: 5,
+    strokeWidth: 3,
     strokeColor: 'black',
-    shadowStrength: 1.0,
-    shadowOffset: 8,
-    backgroundBox: true,
-    backgroundOpacity: 0.5
+    shadowStrength: 0.9,
+    shadowOffset: 4,
+    backgroundBox: false, // No background box
+    maxCharsPerLine: 25 // Force line break after 25 characters
   }
+);
+
+// Example 3: Multiple titles (if still needed)
+processor.generateVideoWithTitles(
+  'input.mp4',
+  'output-multiple.mp4',
+  ['Title 1', 'Title 2'],
+  ['red', 'blue']
 );
 */
