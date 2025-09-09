@@ -19,9 +19,52 @@ const openai = new OpenAI({
 
 const videoProcessor = new VideoProcessor();
 
-// Middleware
-app.use(cors());
+// Middleware - Enhanced CORS configuration for cross-browser compatibility
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost and Vercel domains
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://instareel.vercel.app",
+        "https://instareel-git-main.vercel.app",
+        "https://instareel-git-main-sahood.vercel.app",
+        "https://portrait-trending-video.vercel.app",
+        // Add your Vercel domain here
+      ].filter(Boolean);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("CORS blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+      "Access-Control-Request-Method",
+      "Access-Control-Request-Headers",
+    ],
+    exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  })
+);
+
+// Handle preflight requests
+app.options("*", cors());
+
 app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(express.static("."));
 
 // Configure multer for file uploads - using memory storage for serverless compatibility
