@@ -15,10 +15,7 @@ if not exist .env (
 )
 
 echo.
-echo Creating necessary directories...
-if not exist uploads mkdir uploads
-if not exist generated mkdir generated
-if not exist temp mkdir temp
+echo Note: Directories will be created automatically in temp folder when needed
 
 echo.
 echo Setup complete!
