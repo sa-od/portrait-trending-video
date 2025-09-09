@@ -62,6 +62,39 @@ createDirSafely(uploadsDir);
 createDirSafely(generatedDir);
 createDirSafely(tempDirPath);
 
+// File cleanup system
+const cleanupInterval = 30 * 60 * 1000; // 30 minutes
+const fileMaxAge = 2 * 60 * 60 * 1000; // 2 hours
+
+const cleanupOldFiles = () => {
+  try {
+    const now = Date.now();
+    const dirs = [uploadsDir, generatedDir, tempDirPath];
+
+    dirs.forEach((dir) => {
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        files.forEach((file) => {
+          const filePath = path.join(dir, file);
+          const stats = fs.statSync(filePath);
+          const age = now - stats.mtime.getTime();
+
+          if (age > fileMaxAge) {
+            fs.unlinkSync(filePath);
+            console.log(`Cleaned up old file: ${file}`);
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.warn("File cleanup error:", error.message);
+  }
+};
+
+// Start cleanup interval
+setInterval(cleanupOldFiles, cleanupInterval);
+console.log("File cleanup system started - cleaning every 30 minutes");
+
 // Routes
 
 // Serve the main application
@@ -73,6 +106,72 @@ app.get("/", (req, res) => {
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
+
+// Storage monitoring endpoint
+app.get("/api/storage", (req, res) => {
+  try {
+    const getDirSize = (dirPath) => {
+      if (!fs.existsSync(dirPath)) return { files: 0, size: 0 };
+
+      const files = fs.readdirSync(dirPath);
+      let totalSize = 0;
+
+      files.forEach((file) => {
+        const filePath = path.join(dirPath, file);
+        const stats = fs.statSync(filePath);
+        totalSize += stats.size;
+      });
+
+      return { files: files.length, size: totalSize };
+    };
+
+    const uploadsInfo = getDirSize(uploadsDir);
+    const generatedInfo = getDirSize(generatedDir);
+    const tempInfo = getDirSize(tempDirPath);
+
+    const totalSize = uploadsInfo.size + generatedInfo.size + tempInfo.size;
+
+    res.json({
+      directories: {
+        uploads: {
+          path: uploadsDir,
+          ...uploadsInfo,
+          sizeFormatted: formatBytes(uploadsInfo.size),
+        },
+        generated: {
+          path: generatedDir,
+          ...generatedInfo,
+          sizeFormatted: formatBytes(generatedInfo.size),
+        },
+        temp: {
+          path: tempDirPath,
+          ...tempInfo,
+          sizeFormatted: formatBytes(tempInfo.size),
+        },
+      },
+      total: {
+        size: totalSize,
+        sizeFormatted: formatBytes(totalSize),
+      },
+      cleanup: {
+        interval: "30 minutes",
+        maxAge: "2 hours",
+      },
+    });
+  } catch (error) {
+    console.error("Storage monitoring error:", error);
+    res.status(500).json({ error: "Failed to get storage info" });
+  }
+});
+
+// Helper function to format bytes
+const formatBytes = (bytes) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
 
 // AI Title Generation
 app.post("/api/generate-titles", async (req, res) => {
