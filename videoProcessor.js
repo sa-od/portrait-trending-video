@@ -88,7 +88,9 @@ class VideoProcessor {
         const isVertical = height > width;
 
         // Calculate font size
-        const fontSize = this.calculateFontSize(width, height);
+        const fontSize = Math.round(
+          this.calculateFontSize(width, height) * 1.33
+        );
 
         // Break title into lines
         const maxChars = isVertical ? 10 : 15;
