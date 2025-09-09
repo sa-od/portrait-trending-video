@@ -155,6 +155,34 @@
             />
           </div>
           <div id="upload-status" class="mt-4 text-center text-sm"></div>
+
+          <!-- Browser Troubleshooting Section -->
+          <div
+            id="troubleshooting-section"
+            class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hidden"
+          >
+            <h3 class="text-sm font-semibold text-yellow-800 mb-2">
+              Having trouble uploading?
+            </h3>
+            <div class="text-xs text-yellow-700 space-y-1">
+              <p>
+                <strong>For Brave Browser:</strong> Try disabling Brave Shields
+                for this site (click the shield icon in the address bar)
+              </p>
+              <p>
+                <strong>For Safari:</strong> Go to Safari > Preferences >
+                Privacy and uncheck "Prevent cross-site tracking"
+              </p>
+              <p>
+                <strong>For all browsers:</strong> Disable ad blockers or
+                privacy extensions temporarily
+              </p>
+              <p>
+                <strong>Still having issues?</strong> Check the browser console
+                (F12) for detailed error messages
+              </p>
+            </div>
+          </div>
         </section>
 
         <!-- Step 2: Enter Titles -->
@@ -609,6 +637,9 @@
         document.getElementById("title-display-2"),
         document.getElementById("title-display-3"),
       ];
+      const troubleshootingSection = document.getElementById(
+        "troubleshooting-section"
+      );
 
       // --- Event Listeners ---
 
@@ -698,10 +729,110 @@
       });
       aiGenerateBtn.addEventListener("click", handleAIGeneration);
 
+      // Browser detection and troubleshooting
+      const detectBrowser = async () => {
+        const userAgent = navigator.userAgent;
+        let isBrave = userAgent.includes("Brave");
+
+        // Check for Brave browser more accurately
+        if (navigator.brave && typeof navigator.brave.isBrave === "function") {
+          try {
+            isBrave = await navigator.brave.isBrave();
+          } catch (e) {
+            // Fallback to user agent detection
+            isBrave = userAgent.includes("Brave");
+          }
+        }
+
+        const isSafari =
+          userAgent.includes("Safari") && !userAgent.includes("Chrome");
+        const isChrome =
+          userAgent.includes("Chrome") && !userAgent.includes("Edge");
+        const isFirefox = userAgent.includes("Firefox");
+
+        return {
+          isBrave,
+          isSafari,
+          isChrome,
+          isFirefox,
+          userAgent,
+        };
+      };
+
+      // Test API connection on page load
+      window.addEventListener("load", async () => {
+        console.log("Page loaded, testing API connection...");
+
+        // Log browser information
+        const browserInfo = await detectBrowser();
+        console.log("Browser detection:", browserInfo);
+
+        const isConnected = await testApiConnection();
+        if (!isConnected) {
+          console.warn("API connection test failed on page load");
+          console.log("Troubleshooting info:");
+          console.log("- Current URL:", window.location.href);
+          console.log("- API Base URL:", getApiBaseUrl());
+          console.log("- Browser:", browserInfo);
+
+          // Show helpful message for known problematic browsers
+          if (browserInfo.isBrave) {
+            console.warn(
+              "Brave browser detected. If you're having issues, try disabling Brave Shields or ad blockers for this site."
+            );
+          }
+          if (browserInfo.isSafari) {
+            console.warn(
+              "Safari browser detected. Make sure 'Prevent cross-site tracking' is disabled for this site."
+            );
+          }
+        }
+      });
+
       // --- Core Functions ---
 
       let uploadedVideoFile = null;
       let uploadedVideoInfo = null;
+
+      // Dynamic API base URL - works for both localhost and production
+      const getApiBaseUrl = () => {
+        // If we're on localhost, use localhost:3000
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
+          return `http://${window.location.hostname}:3000`;
+        }
+        // For production, use the same origin
+        return window.location.origin;
+      };
+
+      // Test API connectivity
+      const testApiConnection = async () => {
+        try {
+          const healthUrl = `${getApiBaseUrl()}/api/health`;
+          console.log("Testing API connection to:", healthUrl);
+
+          const response = await fetch(healthUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("API connection successful:", data);
+            return true;
+          } else {
+            console.error("API health check failed:", response.status);
+            return false;
+          }
+        } catch (error) {
+          console.error("API connection test failed:", error);
+          return false;
+        }
+      };
 
       /**
        * Handles the selected video file.
@@ -719,22 +850,42 @@
         }
 
         try {
+          displayStatus("Testing connection...", "success");
+
+          // Test API connection first
+          const isConnected = await testApiConnection();
+          if (!isConnected) {
+            throw new Error(
+              "Cannot connect to server. Please check if the server is running and try again."
+            );
+          }
+
           displayStatus("Uploading video...", "success");
 
           // Upload video to backend
           const formData = new FormData();
           formData.append("video", file);
 
-          const response = await fetch(
-            "http://localhost:3000/api/upload-video",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
+          const apiUrl = `${getApiBaseUrl()}/api/upload-video`;
+          console.log("Uploading to:", apiUrl);
+          console.log("Current origin:", window.location.origin);
+          console.log("User agent:", navigator.userAgent);
+
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            body: formData,
+            // Add headers for better browser compatibility
+            headers: {
+              Accept: "application/json",
+            },
+          });
 
           if (!response.ok) {
-            throw new Error("Failed to upload video");
+            const errorText = await response.text();
+            console.error("Upload failed:", response.status, errorText);
+            throw new Error(
+              `Failed to upload video: ${response.status} ${errorText}`
+            );
           }
 
           uploadedVideoInfo = await response.json();
@@ -753,7 +904,28 @@
           enableSections();
         } catch (error) {
           console.error("Upload error:", error);
-          displayStatus("Failed to upload video. Please try again.", "error");
+
+          // Provide more specific error messages based on error type
+          let errorMessage = "Failed to upload video. Please try again.";
+
+          if (
+            error.name === "TypeError" &&
+            error.message.includes("Failed to fetch")
+          ) {
+            errorMessage =
+              "Network error: Unable to connect to server. Please check your internet connection and try again.";
+            troubleshootingSection.classList.remove("hidden");
+          } else if (error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
+            errorMessage =
+              "Request blocked by browser security. Please disable ad blockers or try a different browser.";
+            troubleshootingSection.classList.remove("hidden");
+          } else if (error.message.includes("CORS")) {
+            errorMessage =
+              "Cross-origin request blocked. Please contact support.";
+            troubleshootingSection.classList.remove("hidden");
+          }
+
+          displayStatus(errorMessage, "error");
         }
       }
 
@@ -812,7 +984,7 @@
       async function downloadVideo(video) {
         try {
           const downloadResponse = await fetch(
-            `http://localhost:3000${video.downloadUrl}`
+            `${getApiBaseUrl()}${video.downloadUrl}`
           );
           if (downloadResponse.ok) {
             const blob = await downloadResponse.blob();
@@ -886,7 +1058,7 @@
        * @returns {Promise<object>} - The parsed JSON response from the API.
        */
       async function callBackendAPI(topic) {
-        const apiUrl = "http://localhost:3000/api/generate-titles";
+        const apiUrl = `${getApiBaseUrl()}/api/generate-titles`;
         const payload = { topic };
 
         let retries = 3;
@@ -963,7 +1135,7 @@
           });
 
           const response = await fetch(
-            "http://localhost:3000/api/generate-individual-video",
+            `${getApiBaseUrl()}/api/generate-individual-video`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

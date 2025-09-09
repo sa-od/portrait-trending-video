@@ -30,6 +30,8 @@ app.use(
       const allowedOrigins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
         "https://instareel.vercel.app",
         "https://instareel-git-main.vercel.app",
         "https://instareel-git-main-sahood.vercel.app",
@@ -54,14 +56,34 @@ app.use(
       "Origin",
       "Access-Control-Request-Method",
       "Access-Control-Request-Headers",
+      "Cache-Control",
+      "Pragma",
     ],
     exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
     optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+    preflightContinue: false,
   })
 );
 
 // Handle preflight requests
 app.options("*", cors());
+
+// Additional middleware for browser compatibility
+app.use((req, res, next) => {
+  // Add security headers for better browser compatibility
+  res.header("X-Content-Type-Options", "nosniff");
+  res.header("X-Frame-Options", "DENY");
+  res.header("X-XSS-Protection", "1; mode=block");
+
+  // Log requests for debugging
+  console.log(
+    `${new Date().toISOString()} - ${req.method} ${req.url} - Origin: ${
+      req.get("Origin") || "No Origin"
+    } - User-Agent: ${req.get("User-Agent")?.substring(0, 50) || "Unknown"}`
+  );
+
+  next();
+});
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -147,7 +169,38 @@ app.get("/", (req, res) => {
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    origin: req.get("Origin") || "No Origin",
+    userAgent: req.get("User-Agent") || "Unknown",
+    method: req.method,
+    url: req.url,
+  });
+});
+
+// Browser compatibility test endpoint
+app.get("/api/browser-test", (req, res) => {
+  res.json({
+    status: "Browser test successful",
+    timestamp: new Date().toISOString(),
+    headers: {
+      origin: req.get("Origin"),
+      userAgent: req.get("User-Agent"),
+      accept: req.get("Accept"),
+      contentType: req.get("Content-Type"),
+    },
+    cors: {
+      allowedOrigins: [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://instareel.vercel.app",
+        "https://instareel-git-main.vercel.app",
+        "https://instareel-git-main-sahood.vercel.app",
+        "https://portrait-trending-video.vercel.app",
+      ],
+    },
+  });
 });
 
 // Storage monitoring endpoint
