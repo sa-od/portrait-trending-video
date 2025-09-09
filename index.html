@@ -68,6 +68,7 @@
         display: grid;
         place-content: center;
         cursor: pointer;
+        transition: all 0.2s ease;
       }
       .color-radio::before {
         content: "";
@@ -80,6 +81,18 @@
       }
       .color-radio:checked::before {
         transform: scale(1);
+      }
+      .color-radio:hover {
+        transform: translateY(-0.075em) scale(1.1);
+      }
+
+      /* Custom color picker styling */
+      .custom-color-picker {
+        transition: all 0.2s ease;
+      }
+      .custom-color-picker:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
     </style>
   </head>
@@ -253,6 +266,16 @@
                   value="black"
                   class="color-radio text-black shadow-black"
                 />
+                <div class="flex flex-col items-center">
+                  <input
+                    type="color"
+                    name="custom-color1"
+                    class="custom-color-picker w-8 h-8 rounded border-2 border-gray-300 cursor-pointer hover:border-indigo-500 transition-colors"
+                    value="#ffffff"
+                    title="Custom color picker"
+                  />
+                  <span class="text-xs text-gray-400 mt-1">Custom</span>
+                </div>
               </div>
             </div>
             <!-- Title Input 2 -->
@@ -305,6 +328,16 @@
                   value="black"
                   class="color-radio text-black shadow-black"
                 />
+                <div class="flex flex-col items-center">
+                  <input
+                    type="color"
+                    name="custom-color2"
+                    class="custom-color-picker w-8 h-8 rounded border-2 border-gray-300 cursor-pointer hover:border-indigo-500 transition-colors"
+                    value="#ffffff"
+                    title="Custom color picker"
+                  />
+                  <span class="text-xs text-gray-400 mt-1">Custom</span>
+                </div>
               </div>
             </div>
             <!-- Title Input 3 -->
@@ -357,6 +390,16 @@
                   value="black"
                   class="color-radio text-black shadow-black"
                 />
+                <div class="flex flex-col items-center">
+                  <input
+                    type="color"
+                    name="custom-color3"
+                    class="custom-color-picker w-8 h-8 rounded border-2 border-gray-300 cursor-pointer hover:border-indigo-500 transition-colors"
+                    value="#ffffff"
+                    title="Custom color picker"
+                  />
+                  <span class="text-xs text-gray-400 mt-1">Custom</span>
+                </div>
               </div>
             </div>
           </div>
@@ -617,9 +660,28 @@
 
       colorPalettes.forEach((palette) => {
         palette.addEventListener("change", (e) => {
+          const index = palette.dataset.index;
+          let color;
+
           if (e.target.type === "radio") {
-            const index = palette.dataset.index;
-            const color = e.target.value;
+            color = e.target.value;
+            // Uncheck custom color picker when radio is selected
+            const customColorPicker = palette.querySelector(
+              ".custom-color-picker"
+            );
+            if (customColorPicker) {
+              customColorPicker.checked = false;
+            }
+          } else if (e.target.type === "color") {
+            color = e.target.value;
+            // Uncheck radio buttons when custom color is selected
+            const radioButtons = palette.querySelectorAll(
+              'input[type="radio"]'
+            );
+            radioButtons.forEach((radio) => (radio.checked = false));
+          }
+
+          if (color) {
             previewTitles[index].style.color = color;
           }
         });
@@ -882,7 +944,16 @@
         const checkedRadio = colorPalette.querySelector(
           'input[type="radio"]:checked'
         );
-        const color = checkedRadio ? checkedRadio.value : "white";
+        const customColorPicker = colorPalette.querySelector(
+          ".custom-color-picker"
+        );
+
+        let color = "white";
+        if (checkedRadio) {
+          color = checkedRadio.value;
+        } else if (customColorPicker && customColorPicker.value) {
+          color = customColorPicker.value;
+        }
 
         try {
           // Disable all buttons during generation
