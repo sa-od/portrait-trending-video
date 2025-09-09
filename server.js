@@ -3,6 +3,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { v4: uuidv4 } = require("uuid");
 const OpenAI = require("openai");
 const VideoProcessor = require("./videoProcessor");
@@ -23,20 +24,8 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.static("."));
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = "uploads";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}-${file.originalname}`;
-    cb(null, uniqueName);
-  },
-});
+// Configure multer for file uploads - using memory storage for serverless compatibility
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
@@ -50,13 +39,28 @@ const upload = multer({
   },
 });
 
-// Create necessary directories
-const dirs = ["uploads", "generated", "temp"];
-dirs.forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+// Create necessary directories - using temp directory for serverless compatibility
+const tempDir = os.tmpdir();
+const uploadsDir = path.join(tempDir, "instareel-uploads");
+const generatedDir = path.join(tempDir, "instareel-generated");
+const tempDirPath = path.join(tempDir, "instareel-temp");
+
+// Create directories safely
+const createDirSafely = (dirPath) => {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`Created directory: ${dirPath}`);
+    }
+  } catch (error) {
+    console.warn(`Could not create directory ${dirPath}:`, error.message);
+    // Continue execution even if directory creation fails
   }
-});
+};
+
+createDirSafely(uploadsDir);
+createDirSafely(generatedDir);
+createDirSafely(tempDirPath);
 
 // Routes
 
@@ -125,12 +129,18 @@ app.post("/api/upload-video", upload.single("video"), (req, res) => {
       return res.status(400).json({ error: "No video file uploaded" });
     }
 
+    // Save file to temporary directory
+    const filename = `${uuidv4()}-${req.file.originalname}`;
+    const filePath = path.join(uploadsDir, filename);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+
     const videoInfo = {
-      filename: req.file.filename,
+      filename: filename,
       originalName: req.file.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype,
-      path: req.file.path,
+      path: filePath,
     };
 
     res.json({
@@ -157,13 +167,13 @@ app.post("/api/generate-video", async (req, res) => {
       return res.status(400).json({ error: "Invalid request data" });
     }
 
-    const videoPath = path.join(__dirname, "uploads", videoFilename);
+    const videoPath = path.join(uploadsDir, videoFilename);
     if (!fs.existsSync(videoPath)) {
       return res.status(404).json({ error: "Video file not found" });
     }
 
     const outputFilename = `generated-${uuidv4()}.mp4`;
-    const outputPath = path.join(__dirname, "generated", outputFilename);
+    const outputPath = path.join(generatedDir, outputFilename);
 
     // Process video with individual titles using FFmpeg
     const generatedVideos = await videoProcessor.generateIndividualVideos(
@@ -193,13 +203,13 @@ app.post("/api/generate-individual-video", async (req, res) => {
       return res.status(400).json({ error: "Invalid request data" });
     }
 
-    const videoPath = path.join(__dirname, "uploads", videoFilename);
+    const videoPath = path.join(uploadsDir, videoFilename);
     if (!fs.existsSync(videoPath)) {
       return res.status(404).json({ error: "Video file not found" });
     }
 
     const outputFilename = `generated-${videoIndex + 1}-${Date.now()}.mp4`;
-    const outputPath = path.join(__dirname, "generated", outputFilename);
+    const outputPath = path.join(generatedDir, outputFilename);
 
     // Process video with single title using FFmpeg
     await videoProcessor.generateSingleTitleVideo(
@@ -229,7 +239,7 @@ app.post("/api/generate-individual-video", async (req, res) => {
 app.get("/api/download/:filename", (req, res) => {
   try {
     const filename = req.params.filename;
-    const filePath = path.join(__dirname, "generated", filename);
+    const filePath = path.join(generatedDir, filename);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: "File not found" });

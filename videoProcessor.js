@@ -197,6 +197,56 @@ class VideoProcessor {
     return results;
   }
 
+  // Generate individual videos for the API
+  async generateIndividualVideos(inputPath, titles, colors = []) {
+    const results = [];
+
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i];
+      const color = colors[i] || "white";
+      const outputName = `generated-${i + 1}-${Date.now()}.mp4`;
+      const outputPath = path.join(
+        process.env.TEMP || require("os").tmpdir(),
+        "instareel-generated",
+        outputName
+      );
+
+      try {
+        // Ensure output directory exists
+        const outputDir = path.dirname(outputPath);
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        await this.generateSingleTitleVideo(
+          inputPath,
+          outputPath,
+          title,
+          color
+        );
+
+        results.push({
+          title,
+          filename: outputName,
+          path: outputPath,
+          downloadUrl: `/api/download/${outputName}`,
+          success: true,
+        });
+
+        console.log(`✓ Generated: ${outputName}`);
+      } catch (error) {
+        console.error(`✗ Failed: ${title} - ${error.message}`);
+        results.push({
+          title,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    return results;
+  }
+
   // Get basic video information
   async getVideoInfo(videoPath) {
     return new Promise((resolve, reject) => {
