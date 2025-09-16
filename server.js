@@ -1,13 +1,19 @@
-const express = require("express");
-const cors = require("cors");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const os = require("os");
-const { v4: uuidv4 } = require("uuid");
-const OpenAI = require("openai");
-const VideoProcessor = require("./videoProcessor");
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import os from "os";
+import { v4 as uuidv4 } from "uuid";
+import OpenAI from "openai";
+import VideoProcessor from "./videoProcessor.js";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -162,7 +168,7 @@ console.log("File cleanup system started - cleaning every 30 minutes");
 
 // Routes
 
-// Serve the main application
+// Serve the React application
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
