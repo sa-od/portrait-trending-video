@@ -28,22 +28,25 @@ npm install
 ### 2. Install FFmpeg
 
 #### Windows:
+
 1. Download FFmpeg from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 2. Extract to a folder (e.g., `C:\ffmpeg`)
 3. Add `C:\ffmpeg\bin` to your system PATH
 4. Or update the paths in `videoProcessor.js`:
 
 ```javascript
-ffmpeg.setFfmpegPath('C:\\ffmpeg\\bin\\ffmpeg.exe');
-ffmpeg.setFfprobePath('C:\\ffmpeg\\bin\\ffprobe.exe');
+ffmpeg.setFfmpegPath("C:\\ffmpeg\\bin\\ffmpeg.exe");
+ffmpeg.setFfprobePath("C:\\ffmpeg\\bin\\ffprobe.exe");
 ```
 
 #### macOS:
+
 ```bash
 brew install ffmpeg
 ```
 
 #### Linux:
+
 ```bash
 sudo apt update
 sudo apt install ffmpeg
@@ -52,11 +55,13 @@ sudo apt install ffmpeg
 ### 3. Environment Setup
 
 1. Copy `env.example` to `.env`:
+
 ```bash
 cp env.example .env
 ```
 
 2. Edit `.env` and add your OpenAI API key:
+
 ```env
 OPENAI_API_KEY=your_actual_api_key_here
 PORT=3000
@@ -120,15 +125,18 @@ Open `index.html` in your web browser or serve it using a local server.
 ## Troubleshooting
 
 ### FFmpeg not found
+
 - Ensure FFmpeg is installed and in your PATH
 - Check the paths in `videoProcessor.js`
 
 ### Video upload fails
+
 - Check file size (max 100MB)
 - Ensure file is a valid video format
 - Check server logs for errors
 
 ### AI generation fails
+
 - Verify OpenAI API key in `.env`
 - Check API quota and billing
 - Review server logs for detailed errors
@@ -136,11 +144,13 @@ Open `index.html` in your web browser or serve it using a local server.
 ## Development
 
 ### Adding New Features
+
 - Backend: Add routes in `server.js`
 - Video processing: Extend `videoProcessor.js`
 - Frontend: Update `index.html`
 
 ### Testing
+
 ```bash
 # Test backend health
 curl http://localhost:3000/api/health

@@ -23,6 +23,7 @@ function App() {
   };
 
   const handleVideoUpload = (file, videoInfo) => {
+    console.log("dd", file, videoInfo);
     setUploadedVideoFile(file);
     setUploadedVideoInfo(videoInfo);
   };

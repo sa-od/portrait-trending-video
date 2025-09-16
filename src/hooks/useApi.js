@@ -21,7 +21,7 @@ export const useApi = () => {
     try {
       const healthUrl = `${getApiBaseUrl()}/api/health`;
       console.log("Testing API connection to:", healthUrl);
-
+      console.log("Testing API connection to:", healthUrl);
       const response = await fetch(healthUrl, {
         method: "GET",
         headers: {
@@ -45,6 +45,7 @@ export const useApi = () => {
 
   const uploadVideo = useCallback(
     async (file) => {
+      console.log("uploadVideo", file);
       const formData = new FormData();
       formData.append("video", file);
 

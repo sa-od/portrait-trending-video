@@ -32,6 +32,7 @@ const UploadSection = ({ onVideoUpload, uploadedVideoFile }) => {
   };
 
   const handleFile = async (file) => {
+    console.log("handleFile", file);
     if (!file.type.startsWith("video/")) {
       setUploadStatus("Error: Please select a valid video file.");
       return;
@@ -47,7 +48,10 @@ const UploadSection = ({ onVideoUpload, uploadedVideoFile }) => {
       setUploadStatus("Testing connection...");
 
       // Test API connection first
+      console.log("testConnection");
       const isConnected = await testConnection();
+      console.log("testConnection 2");
+      console.log("testConnection 2");
       if (!isConnected) {
         throw new Error(
           "Cannot connect to server. Please check if the server is running and try again."
