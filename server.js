@@ -42,6 +42,7 @@ app.use(
         "https://instareel-git-main.vercel.app",
         "https://instareel-git-main-sahood.vercel.app",
         "https://portrait-trending-video.vercel.app",
+        "https://portrait-trending-video.vercel.app/",
         // Add your Vercel domain here
       ].filter(Boolean);
 
@@ -200,6 +201,8 @@ app.get("/api/browser-test", (req, res) => {
       allowedOrigins: [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
         "https://instareel.vercel.app",
         "https://instareel-git-main.vercel.app",
         "https://instareel-git-main-sahood.vercel.app",

@@ -9,6 +9,10 @@ export const useApi = () => {
     ) {
       return `http://${window.location.hostname}:3000`;
     }
+    // For Vercel domains, use the backend API URL
+    if (window.location.hostname.includes("vercel.app")) {
+      return "https://instareel-backend.vercel.app"; // Update this to your actual backend URL
+    }
     // For production, use the same origin
     return window.location.origin;
   }, []);
