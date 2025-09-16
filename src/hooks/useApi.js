@@ -3,18 +3,20 @@ import { useCallback } from "react";
 export const useApi = () => {
   const getApiBaseUrl = useCallback(() => {
     // If we're on localhost, use localhost:3000
-    if (
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-    ) {
-      return `http://${window.location.hostname}:3000`;
-    }
-    // For Vercel domains, use the backend API URL
-    if (window.location.hostname.includes("vercel.app")) {
-      return "https://instareel-backend.vercel.app"; // Update this to your actual backend URL
-    }
-    // For production, use the same origin
-    return window.location.origin;
+    // if (
+    //   window.location.hostname === "localhost" ||
+    //   window.location.hostname === "127.0.0.1"
+    // ) {
+    //   return `http://${window.location.hostname}:3000`;
+    // }
+    // // For Vercel domains, use the backend API URL
+    // if (window.location.hostname.includes("vercel.app")) {
+    //   return "https://instareel-backend.vercel.app"; // Update this to your actual backend URL
+    // }
+    // // For production, use the same origin
+    // return window.location.origin;
+
+    return "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app/";
   }, []);
 
   const testConnection = useCallback(async () => {
