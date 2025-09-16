@@ -43,25 +43,7 @@ app.use((req, res, next) => {
 });
 
 // CORS configuration
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3001", // Vite dev server
-      "http://localhost:3000", // Express server
-      "http://127.0.0.1:3001",
-      "http://127.0.0.1:3000",
-    ],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "Accept",
-      "Origin",
-      "X-Requested-With",
-    ],
-  })
-);
+app.use(cors({ origin: true, credentials: true }));
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
