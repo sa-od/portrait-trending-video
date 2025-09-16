@@ -16,7 +16,7 @@ export const useApi = () => {
     // // For production, use the same origin
     // return window.location.origin;
 
-    return "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app/";
+    return "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app";
   }, []);
 
   const testConnection = useCallback(async () => {
