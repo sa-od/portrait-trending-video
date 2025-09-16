@@ -26,27 +26,12 @@ const openai = new OpenAI({
 const videoProcessor = new VideoProcessor();
 
 // Additional middleware for browser compatibility
-app.use((req, res, next) => {
-  // Add security headers for better browser compatibility
-  res.header("X-Content-Type-Options", "nosniff");
-  res.header("X-Frame-Options", "DENY");
-  res.header("X-XSS-Protection", "1; mode=block");
-
-  // Log requests for debugging
-  console.log(
-    `${new Date().toISOString()} - ${req.method} ${req.url} - Origin: ${
-      req.get("Origin") || "No Origin"
-    } - User-Agent: ${req.get("User-Agent")?.substring(0, 50) || "Unknown"}`
-  );
-
-  next();
-});
 
 // CORS configuration
 app.use(cors({ origin: true, credentials: true }));
 
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+// app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Serve static files from dist folder (built React app)
 app.use(
