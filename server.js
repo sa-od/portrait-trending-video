@@ -32,15 +32,6 @@ app.use((req, res, next) => {
   res.header("X-Frame-Options", "DENY");
   res.header("X-XSS-Protection", "1; mode=block");
 
-  // Set proper MIME types for static assets
-  if (req.url.endsWith(".js")) {
-    res.setHeader("Content-Type", "application/javascript");
-  } else if (req.url.endsWith(".css")) {
-    res.setHeader("Content-Type", "text/css");
-  } else if (req.url.endsWith(".html")) {
-    res.setHeader("Content-Type", "text/html");
-  }
-
   // Log requests for debugging
   console.log(
     `${new Date().toISOString()} - ${req.method} ${req.url} - Origin: ${
@@ -55,7 +46,20 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Serve static files from dist folder (built React app)
-app.use(express.static("dist"));
+app.use(
+  express.static("dist", {
+    setHeaders: (res, path) => {
+      // Set proper MIME types for static assets
+      if (path.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      } else if (path.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css");
+      } else if (path.endsWith(".html")) {
+        res.setHeader("Content-Type", "text/html");
+      }
+    },
+  })
+);
 
 // Serve additional static files from root for API endpoints
 app.use("/api", express.static("."));
