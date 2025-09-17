@@ -32,6 +32,7 @@ const videoProcessor = new VideoProcessor();
 const allowedOrigins = [
   "https://chic-taffy-bf0e46.netlify.app/",
   "https://portrait-trending-video.vercel.app/",
+  "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app/",
 ];
 
 app.use(
