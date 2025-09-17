@@ -28,27 +28,7 @@ const videoProcessor = new VideoProcessor();
 // Additional middleware for browser compatibility
 
 // CORS configuration
-
-const allowedOrigins = [
-  "https://chic-taffy-bf0e46.netlify.app",
-  "https://portrait-trending-video.vercel.app",
-  "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app",
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        console.log("CORS: Allowing request from:", origin);
-        callback(null, true);
-      } else {
-        console.log("CORS: Blocking request from:", origin);
-        return callback(new Error("Not allowed by CORS"));
-      }
-    },
-  })
-);
-
+app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 // app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 

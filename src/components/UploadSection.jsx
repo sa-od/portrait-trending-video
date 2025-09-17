@@ -45,21 +45,6 @@ const UploadSection = ({ onVideoUpload, uploadedVideoFile }) => {
     }
 
     try {
-      setUploadStatus("Testing connection...");
-
-      // Test API connection first
-      console.log("testConnection");
-      const isConnected = await testConnection();
-      console.log("testConnection 2");
-      console.log("testConnection 2");
-      if (!isConnected) {
-        throw new Error(
-          "Cannot connect to server. Please check if the server is running and try again."
-        );
-      }
-
-      setUploadStatus("Uploading video...");
-
       // Upload video to backend
       const videoInfo = await uploadVideo(file);
 
