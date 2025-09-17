@@ -28,26 +28,32 @@ const videoProcessor = new VideoProcessor();
 // Additional middleware for browser compatibility
 
 // CORS configuration
-app.use(cors());
+
+const allowedOrigins = [
+  "https://chic-taffy-bf0e46.netlify.app/",
+  "https://portrait-trending-video.vercel.app/",
+];
+
+app.use(
+  // allow all origins
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        console.log("CORS: Allowing request from:", origin);
+        callback(null, true);
+      } else {
+        console.log("CORS: Blocking request from:", origin);
+        return;
+      }
+    },
+  })
+);
 
 app.use(express.json({ limit: "50mb" }));
 // app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Serve static files from dist folder (built React app)
-app.use(
-  express.static("dist", {
-    setHeaders: (res, path) => {
-      // Set proper MIME types for static assets
-      if (path.endsWith(".js")) {
-        res.setHeader("Content-Type", "application/javascript");
-      } else if (path.endsWith(".css")) {
-        res.setHeader("Content-Type", "text/css");
-      } else if (path.endsWith(".html")) {
-        res.setHeader("Content-Type", "text/html");
-      }
-    },
-  })
-);
+app.use(express.static("dist"));
 
 // Serve additional static files from root for API endpoints
 app.use("/api", express.static("."));
