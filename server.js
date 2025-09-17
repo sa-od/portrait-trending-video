@@ -30,13 +30,12 @@ const videoProcessor = new VideoProcessor();
 // CORS configuration
 
 const allowedOrigins = [
-  "https://chic-taffy-bf0e46.netlify.app/",
-  "https://portrait-trending-video.vercel.app/",
-  "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app/",
+  "https://chic-taffy-bf0e46.netlify.app",
+  "https://portrait-trending-video.vercel.app",
+  "https://68c9a201d145240a0499f00a--chic-taffy-bf0e46.netlify.app",
 ];
 
 app.use(
-  // allow all origins
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -44,7 +43,7 @@ app.use(
         callback(null, true);
       } else {
         console.log("CORS: Blocking request from:", origin);
-        return;
+        return callback(new Error("Not allowed by CORS"));
       }
     },
   })
