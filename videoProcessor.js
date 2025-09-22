@@ -8,6 +8,33 @@ class VideoProcessor {
     this.setupFFmpeg();
   }
 
+  // Log memory usage with optional context
+  logMemoryUsage(context = "") {
+    const used = process.memoryUsage();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+
+    console.log(`[MEMORY] ${context}`);
+    console.log(`  - Process RSS: ${Math.round(used.rss / 1024 / 1024)} MB`);
+    console.log(
+      `  - Process Heap Used: ${Math.round(used.heapUsed / 1024 / 1024)} MB`
+    );
+    console.log(
+      `  - Process Heap Total: ${Math.round(used.heapTotal / 1024 / 1024)} MB`
+    );
+    console.log(
+      `  - System Memory Used: ${Math.round(usedMem / 1024 / 1024)} MB`
+    );
+    console.log(
+      `  - System Memory Total: ${Math.round(totalMem / 1024 / 1024)} MB`
+    );
+    console.log(
+      `  - System Memory Free: ${Math.round(freeMem / 1024 / 1024)} MB`
+    );
+    console.log(`  - Memory Usage: ${Math.round((usedMem / totalMem) * 100)}%`);
+  }
+
   setupFFmpeg() {
     if (process.platform === "darwin") {
       ffmpeg.setFfmpegPath("/opt/homebrew/bin/ffmpeg");
@@ -121,8 +148,16 @@ class VideoProcessor {
             "-c:v libx264",
             "-c:a aac",
             "-preset fast",
-            "-crf 23",
+
+            "-crf 32", // Higher compression
+            "-threads 1", // Single thread only
+            "-bufsize 32k", // Small buffer
+
+            "-profile:v baseline", // Baseline profile for compatibility
+            "-level 3.0", // Lower level for memory efficiency
             "-movflags +faststart",
+            "-max_muxing_queue_size 1024", // Limit queue size
+            "-f mp4",
           ])
           .output(outputPath);
 
@@ -132,14 +167,20 @@ class VideoProcessor {
             console.log(`Processing video: ${width}x${height}`);
             console.log(`Font size: ${fontSize}`);
             console.log(`Lines: ${lines.join(" | ")}`);
+            this.logMemoryUsage("Video processing started");
           })
           .on("progress", (progress) => {
             if (progress.percent) {
               console.log(`Progress: ${Math.round(progress.percent)}%`);
+              // Log memory every 20% progress
+              this.logMemoryUsage(
+                `Video processing at ${Math.round(progress.percent)}%`
+              );
             }
           })
           .on("end", () => {
             console.log("Video processing completed");
+            this.logMemoryUsage("Video processing completed");
             resolve(outputPath);
           })
           .on("error", (err) => {
