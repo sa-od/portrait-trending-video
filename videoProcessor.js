@@ -11,28 +11,8 @@ class VideoProcessor {
   // Log memory usage with optional context
   logMemoryUsage(context = "") {
     const used = process.memoryUsage();
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
-
-    console.log(`[MEMORY] ${context}`);
-    console.log(`  - Process RSS: ${Math.round(used.rss / 1024 / 1024)} MB`);
-    console.log(
-      `  - Process Heap Used: ${Math.round(used.heapUsed / 1024 / 1024)} MB`
-    );
-    console.log(
-      `  - Process Heap Total: ${Math.round(used.heapTotal / 1024 / 1024)} MB`
-    );
-    console.log(
-      `  - System Memory Used: ${Math.round(usedMem / 1024 / 1024)} MB`
-    );
-    console.log(
-      `  - System Memory Total: ${Math.round(totalMem / 1024 / 1024)} MB`
-    );
-    console.log(
-      `  - System Memory Free: ${Math.round(freeMem / 1024 / 1024)} MB`
-    );
-    console.log(`  - Memory Usage: ${Math.round((usedMem / totalMem) * 100)}%`);
+    const totalMB = Math.round(used.rss / 1024 / 1024);
+    console.log(`[MEMORY] ${context}: ${totalMB} MB`);
   }
 
   setupFFmpeg() {
@@ -171,8 +151,6 @@ class VideoProcessor {
           })
           .on("progress", (progress) => {
             if (progress.percent) {
-              console.log(`Progress: ${Math.round(progress.percent)}%`);
-              // Log memory every 20% progress
               this.logMemoryUsage(
                 `Video processing at ${Math.round(progress.percent)}%`
               );
